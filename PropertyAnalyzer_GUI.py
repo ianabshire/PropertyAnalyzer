@@ -305,7 +305,7 @@ class ExpensesWidget(QtWidgets.QWidget):
 
 class LoanWidget(QtWidgets.QWidget):
     def __init__(self, property):
-        super().__init__()
+        super(LoanWidget, self).__init__()
 
         self.property = property
 
@@ -497,6 +497,8 @@ class PropertyTableModel(QtCore.QAbstractTableModel):
         """ datain: a list of lists
             headerdata: a list of strings
         """
+
+        super(PropertyTableModel, self).__init__()
         QtCore.QAbstractTableModel.__init__(self, parent, *args)
         self.__data = data     # Initial Data
         self.header = header

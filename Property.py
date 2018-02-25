@@ -12,6 +12,13 @@ class Property():
         self.price = price
         self.rent = rent
 
+        # optional
+        self.year = None
+        self.size = None
+        self.beds = None
+        self.baths = None
+        self.mls_number = None
+
         # expenses
         self.vacancy_rate = 0.0
         self.tax_rate = 0.0
@@ -34,6 +41,9 @@ class Property():
         self.cap_rate = 0.0
         self.total_cost_month = 0.0
         self.total_net_month = 0.0
+
+        self.valid = False
+        self.isPreForeclosure = None
 
         self.resetToDefaults()
         self.calculate()
@@ -69,9 +79,10 @@ class Property():
 
     def isValid(self):
         if (self.zp_id != None and self.address != None and self.price != None and self.rent != None):
-            return True
+            self.valid = True
         else:
-            return False
+            self.valid = False
+        return self.valid
 
     def calculate(self):
         self.down_payment_dollars = self.price * (self.down_payment_rate / 100)
@@ -210,6 +221,37 @@ class Property():
 
     def setTotalNetMonth(self, total_net_month):
         self.total_net_month = total_net_month
+
+    # optional
+    def getYear(self):
+        return self.year
+    def setYear(self, year):
+        self.year = year
+
+    def getSize(self):
+        return self.size
+    def setSize(self, size):
+        self.size = size
+
+    def getBeds(self):
+        return self.beds
+    def setBeds(self, beds):
+        self.beds = beds
+
+    def getBaths(self):
+        return self.baths
+    def setBaths(self, baths):
+        self.baths = baths
+
+    def getMLSNumber(self):
+        return self.mls_number
+    def setMLSNumber(self, mls_number):
+        self.mls_number = mls_number
+
+    def getIsPreForeclosure(self):
+        return self.isPreForeclosure
+    def setIsPreForeclosure(self, isPreForeclosure):
+        self.isPreForeclosure = isPreForeclosure
 
 
 class DefaultValues():

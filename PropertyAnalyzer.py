@@ -4,12 +4,7 @@ import sys, locale
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PropertyAnalyzer_GUI import Ui_MainWindow
 from Property import Property
-import html5lib
-import lxml
-from bs4 import BeautifulSoup, SoupStrainer
-import requests
-import re
-import usaddress
+from PropertyData import PropertyData
 
 
 class PropertyAnalyzerApp(QtWidgets.QMainWindow, Ui_MainWindow):
@@ -28,9 +23,11 @@ class PropertyAnalyzerApp(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.propertyList.addItemToList(1, "123 Elm St.", "Benicia", "CA", 94510, 100000, 2000)
         #prop = Property(99, "123 Elm St.", "Benicia", "CA", 94510, 100000, 2000)
         #self.propertyWidget.setProperty(prop)
-        self.zpidList = []
+        #self.zpidList = []
         self.propertyList = []
         self.currentPropertyIndex = -1
+
+        self.propertyData = PropertyData()
 
         #testing
         #prop = Property(99, "123 Elm St.", "Benicia", "CA", 94510, 100000, 2000)
@@ -41,10 +38,11 @@ class PropertyAnalyzerApp(QtWidgets.QMainWindow, Ui_MainWindow):
     def searchButton_Clicked(self):
         zip = self.searchTextBox.text()
         if zip != "":
-            if (self.validatePostalCode(zip)):
-                self.getPropertyIDs(zip)
-                if (len(self.zpidList) > 0):
-                    self.getPropertyList()
+            if (self.propertyData.validatePostalCode(zip)):
+                #self.zpidList = self.propertyData.getPropertyIDs(zip)
+                #if (len(self.zpidList) > 0):
+                self.propertyList = self.propertyData.getPropertyList(zip)
+                if self.propertyList is not None:
                     self.updatePropertyTable()
                     self.currentPropertyIndex = -1
                     self.propertyTableView.selectRow(0)
@@ -143,130 +141,8 @@ class PropertyAnalyzerApp(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.updateTableView()
         #self.ignoreSelectionChange = False
 
-    def getPropertyIDs(self, zip):
-        zpidList = []
-        url = "http://www.zillow.com/homes/for_sale/" + zip
-        pageNum = 1
-        finished = False
-        while not finished:
-            zpidsOnPage = []
-            pageUrl = url +"/" + pageNum.__str__() + "_p/"
-            response = requests.get(pageUrl)
-            html = response.content
-            soup = BeautifulSoup(html, "html5lib")
-            #zpidTags = soup.find_all(attrs={"data-zpid":True})
-            zpidTags = soup.find_all(attrs={"data-zpid":True})
 
-            for tag in zpidTags:
-                zpid = tag['data-zpid']
-                if (not zpidList.__contains__(zpid)):
-                    zpidList.append(zpid)
-                else:
-                    finished = True
 
-            pageNum += 1
-            #temporary, limit results for testing
-            #if pageNum > 1:
-            #    break
-
-        for id in zpidList:
-            print(id)
-        self.zpidList = zpidList
-
-    def validatePostalCode(self, zip):
-        if len(zip) == 5 and zip.isdigit():
-            return True
-        return False
-
-    def getPropertyList(self):
-        if (len(self.zpidList) > 0):
-            #i = 0
-            self.propertyList.clear()
-            for zpid in self.zpidList:
-                property = self.getPropertyFromZpid(zpid)
-                if (property is not None and property.isValid() == True):
-                    property.calculate()
-                    self.propertyList.append(property)
-                    # temporary, limits results for testing
-                    #i += 1
-                    #if (i > 2):
-                    #    return
-
-    def getPropertyFromZpid(self, zpid):
-        url = "http://www.zillow.com/homes/" + zpid + "_zpid/"
-        response = requests.get(url)
-        html = response.content
-        #html = '<html><body><div class="something-else"><div class=" status-icon-row for-sale-row home-summary-row"></div><div class=" home-summary-row"><span class=""> $1,342,144 </span></div></div></body></html>'
-        #bad_soup = BeautifulSoup(html, "html5lib")
-        #soup = BeautifulSoup(bad_soup.prettify(), "html5lib")
-        soup = BeautifulSoup(html, "lxml")
-
-        property = Property()
-        property.setID(zpid)
-        price = self.getPriceFromWebPage(soup)
-        property.setPrice(price)
-        rent = self.getRentFromWebPage(soup)
-        property.setRent(rent)
-        print(property.getRent())
-        address, city, state, zip = self.getAddressFromWebPage(soup)
-        property.setAddress(address)
-        property.setCity(city)
-        property.setState(state)
-        property.setZip(zip)
-
-        return property
-
-    def getPriceFromWebPage(self, soup):
-        price = None
-        if (soup is not None):
-            results = soup.find_all('div', attrs={"class":"main-row home-summary-row"})
-            if len(results) > 0:
-                text = results[0].text
-                try:
-                    price = int(re.sub('[^0-9]', '', text))
-                except:
-                    price = None
-        return price
-
-    def getAddressFromWebPage(self, soup):
-        address = None
-        city = None
-        state = None
-        zip = None
-        if (soup is not None):
-            results = soup.find_all(attrs={"class":"addr"})
-            if (len(results) > 0):
-                children = results[0].find_all('h1')
-                if (len(children) > 0):
-                    address = children[0].text
-                    parsed, type = usaddress.tag(address)
-                    address = ""
-                    for key in parsed:
-                        if key == 'PlaceName':
-                            city = parsed['PlaceName']
-                        elif key == 'StateName':
-                             state = parsed['StateName']
-                        elif key == 'ZipCode':
-                             zip = parsed['ZipCode']
-                        else:
-                            address += parsed[key] + " "
-        return address, city, state, zip
-
-    def getRentFromWebPage(self, soup):
-        rent = None
-        if (soup is not None):
-            results = soup.find_all(attrs={"class":"zest-title"})
-            if (len(results) > 0):
-                for result in results:
-                    if ("Rent" in result.text):
-                        rentNode = result.parent.find(attrs={"class":"zest-value"})
-                        if (rentNode is not None):
-                            try:
-                                rent = int(re.sub('[^0-9]', '', rentNode.text))
-                            except:
-                                rent = None
-                            break  # found rent estimate
-        return rent
 
     downPaymentRateChanging = False
     downPaymentDollarsChanging = False
